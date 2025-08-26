@@ -56,8 +56,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const { user: userData, access_token } = await response.json();
       
-      // Store the access token
-      localStorage.setItem('access_token', access_token);
+      // Store the access token with consistent key name
+      localStorage.setItem('gamblor_token', access_token);
       
       // Set the user
       setUser(userData);
@@ -69,21 +69,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
+    localStorage.removeItem('gamblor_token');
     setUser(null);
   };
 
   // Check for existing session on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('gamblor_token');
       if (token) {
-        // In a real app, you'd verify the token with the backend
-        // For now, we'll just check if it exists
-        // You could implement a /auth/me endpoint to verify the token
-        
-        // For this example, we'll skip token verification
-        // In production, you should verify the token is still valid
+        try {
+          // Verify token with backend /auth/me endpoint
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
+          const response = await fetch(`${backendUrl}/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData);
+          } else {
+            // Token is invalid, remove it
+            localStorage.removeItem('gamblor_token');
+          }
+        } catch (error) {
+          console.error('Token verification failed:', error);
+          localStorage.removeItem('gamblor_token');
+        }
       }
       setIsLoading(false);
     };

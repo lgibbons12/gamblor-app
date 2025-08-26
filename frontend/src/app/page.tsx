@@ -14,48 +14,10 @@ export default function Home() {
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-950 dark:to-black">
+    <div className="relative bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-950 dark:to-black">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-200/30 via-transparent to-transparent dark:from-emerald-400/10" />
 
-      {/* Header */}
-      <header className="relative mx-auto max-w-6xl px-6 py-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Gamblor</h1>
-          <div className="flex items-center gap-4">
-            {user ? (
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  {user.avatar_url && (
-                    <img
-                      src={user.avatar_url}
-                      alt={user.name}
-                      className="h-8 w-8 rounded-full"
-                    />
-                  )}
-                  <span className="text-sm font-medium text-slate-900 dark:text-white">
-                    {user.name}
-                  </span>
-                </div>
-                <button
-                  onClick={logout}
-                  className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                >
-                  Sign out
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleLogin}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-500"
-              >
-                Sign in
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="relative mx-auto max-w-6xl px-6 py-16 sm:py-24">
+      <div className="relative mx-auto max-w-6xl px-6 py-16 sm:py-24">
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-white/60 px-3 py-1 text-xs font-medium text-emerald-700 shadow-sm backdrop-blur dark:border-emerald-400/20 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -71,19 +33,30 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
+              {user ? (
+                <Link
+                  href="/games"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zm-9-3.75h.008v.008H12V8.25z"/></svg>
+                  Start Playing Games
+                </Link>
+              ) : (
+                <button
+                  onClick={handleLogin}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4m-5-4l5-5-5-5m5 5H3"/></svg>
+                  Sign In to Play
+                </button>
+              )}
               <Link
                 href="/users"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-3 text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-3 text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 View Users
               </Link>
-              <a
-                href="#learn-more"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-3 text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-              >
-                Learn more
-              </a>
             </div>
           </div>
 
@@ -132,7 +105,7 @@ export default function Home() {
             <p className="mt-2 text-slate-800 dark:text-slate-200">Keep it friendly, keep it competitive.</p>
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

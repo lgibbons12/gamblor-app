@@ -8,6 +8,7 @@ load_dotenv()
 
 from routers.users import router as users_router
 from routers.oauth import router as oauth_router
+from routers.games import router as games_router
 
 
 
@@ -30,6 +31,7 @@ def health_check():
 
 app.include_router(users_router)
 app.include_router(oauth_router)
+app.include_router(games_router)
 
 
 # Broad CORS for local dev; narrow in production

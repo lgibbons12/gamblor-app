@@ -12,6 +12,7 @@ from google.oauth2 import id_token
 
 from db import get_session
 from models import User, UserCreate, UserRead
+from auth import get_current_user
 
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -136,17 +137,11 @@ async def google_oauth(
 
 
 @router.get("/me", response_model=UserRead)
-async def get_current_user(
-    session: Session = Depends(get_session),
-    # You'll need to implement token verification middleware
-    # For now, this is a placeholder
+async def get_me(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
 ):
     """
     Get current user from JWT token
-    This endpoint would typically use a dependency to extract and verify the JWT
     """
-    # This is a placeholder - you'd implement JWT verification here
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="JWT verification not yet implemented"
-    )
+    return UserRead.model_validate(user)
