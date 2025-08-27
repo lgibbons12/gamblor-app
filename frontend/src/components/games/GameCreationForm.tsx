@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Popup } from '@/components/ui/popup';
+import { GameSettings } from '@/components/games/GameSettings';
 import { Game, gamesAPI } from '@/lib/api/games';
 import { ArrowLeft, Loader2, DollarSign, Settings, Trophy, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -20,9 +22,10 @@ import { useToast } from '@/components/ui/use-toast';
 // Zod schema for form validation
 const gameCreationSchema = z.object({
   title: z.string().optional(),
-  ante_dollars: z.number().min(1, 'Ante must be at least $1').max(100, 'Ante cannot exceed $100'),
+  ante_dollars: z.number().min(1, 'Ante must be at least $1').max(1000, 'Ante cannot exceed $1000'),
   adjudication_mode: z.enum(['admin_only', 'trust_turn_holder']),
   mlb_game_id: z.string().optional(),
+  deadline_seconds: z.number().optional(),
 });
 
 type GameCreationFormData = z.infer<typeof gameCreationSchema>;
@@ -35,6 +38,7 @@ interface GameCreationFormProps {
 export function GameCreationForm({ onGameCreated, onBack }: GameCreationFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<GameCreationFormData>({
@@ -42,8 +46,9 @@ export function GameCreationForm({ onGameCreated, onBack }: GameCreationFormProp
     defaultValues: {
       title: '',
       ante_dollars: 1,
-      adjudication_mode: 'admin_only',
+      adjudication_mode: 'trust_turn_holder', // Changed default to turn-based
       mlb_game_id: '',
+      deadline_seconds: undefined,
     },
   });
 
@@ -58,6 +63,7 @@ export function GameCreationForm({ onGameCreated, onBack }: GameCreationFormProp
         ante_dollars: data.ante_dollars,
         adjudication_mode: data.adjudication_mode,
         mlb_game_id: data.mlb_game_id?.trim() || undefined,
+        deadline_seconds: data.deadline_seconds,
       };
 
       const game = await gamesAPI.createGame(gameData);
@@ -83,6 +89,29 @@ export function GameCreationForm({ onGameCreated, onBack }: GameCreationFormProp
 
   const anteOptions = [1, 2, 5, 10];
 
+  // Get current form values for settings popup
+  const watchedValues = form.watch();
+
+  const handleSettingsChange = (settings: {
+    ante_dollars: number;
+    adjudication_mode: 'admin_only' | 'trust_turn_holder';
+    deadline_seconds?: number;
+    mlb_game_id?: string;
+  }) => {
+    form.setValue('ante_dollars', settings.ante_dollars);
+    form.setValue('adjudication_mode', settings.adjudication_mode);
+    form.setValue('deadline_seconds', settings.deadline_seconds);
+    form.setValue('mlb_game_id', settings.mlb_game_id);
+  };
+
+  const handleSettingsSave = () => {
+    setShowSettings(false);
+    toast({
+      title: "Settings Updated",
+      description: "Your game settings have been saved",
+    });
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-0">
       {/* Header */}
@@ -101,10 +130,10 @@ export function GameCreationForm({ onGameCreated, onBack }: GameCreationFormProp
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Trophy className="h-5 w-5" />
-            <span>Game Settings</span>
+            <span>Create Game</span>
           </CardTitle>
           <CardDescription>
-            Configure your game settings. You'll be the admin and can change these later.
+            Start a new baseball prediction game with turn-based adjudication.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -123,7 +152,7 @@ export function GameCreationForm({ onGameCreated, onBack }: GameCreationFormProp
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Game Title</FormLabel>
+                    <FormLabel>Game Title (Optional)</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="e.g., Yankees vs Red Sox Showdown"
@@ -139,127 +168,49 @@ export function GameCreationForm({ onGameCreated, onBack }: GameCreationFormProp
                 )}
               />
 
-              <Separator />
-
-              {/* Ante Amount */}
-              <FormField
-                control={form.control}
-                name="ante_dollars"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold flex items-center space-x-2">
-                      <DollarSign className="h-4 w-4" />
-                      <span>Ante Amount</span>
-                    </FormLabel>
-                    <FormControl>
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          {anteOptions.map((amount) => (
-                            <Button
-                              key={amount}
-                              type="button"
-                              variant={field.value === amount ? "default" : "outline"}
-                              className="h-14 text-lg font-semibold"
-                              onClick={() => field.onChange(amount)}
-                            >
-                              ${amount}
-                            </Button>
-                          ))}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Label htmlFor="custom-ante" className="text-sm">Custom:</Label>
-                          <Input
-                            id="custom-ante"
-                            type="number"
-                            min="1"
-                            max="100"
-                            className="w-28 h-10 text-center"
-                            placeholder="$"
-                            inputMode="numeric"
-                            onChange={(e) => {
-                              const value = parseInt(e.target.value);
-                              if (value > 0) field.onChange(value);
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </FormControl>
-                    <FormDescription>
-                      Amount each player pays to enter the game
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Separator />
-
-              {/* Adjudication Mode */}
-              <FormField
-                control={form.control}
-                name="adjudication_mode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold flex items-center space-x-2">
-                      <Settings className="h-4 w-4" />
-                      <span>Game Management</span>
-                    </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="text-base h-12">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="admin_only" className="py-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium">Admin Only</span>
-                              <Badge variant="secondary" className="text-xs">Recommended</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground leading-snug">
-                              Only you can determine winners and manage the game
-                            </p>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="trust_turn_holder" className="py-4">
-                          <div className="space-y-2">
-                            <div className="font-medium">Trust Turn Holder</div>
-                            <p className="text-sm text-muted-foreground leading-snug">
-                              Current player can self-adjudicate outcomes
-                            </p>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Separator />
-
-              {/* MLB Game ID */}
-              <FormField
-                control={form.control}
-                name="mlb_game_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>MLB Game ID (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="e.g., 2024-10-15-NYY-BOS"
-                        className="text-base h-12"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Link to a specific MLB game for automated data
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Current Settings Summary */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Game Settings</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSettings(true)}
+                    className="h-8"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Edit Settings
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Ante Amount</div>
+                    <div className="font-semibold">${watchedValues.ante_dollars}</div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Adjudication</div>
+                    <div className="font-semibold">
+                      {watchedValues.adjudication_mode === 'trust_turn_holder' 
+                        ? 'Turn-Based' 
+                        : 'Admin Only'}
+                    </div>
+                  </div>
+                  {watchedValues.deadline_seconds && (
+                    <div className="space-y-1">
+                      <div className="text-sm text-muted-foreground">Pick Deadline</div>
+                      <div className="font-semibold">{watchedValues.deadline_seconds}s</div>
+                    </div>
+                  )}
+                  {watchedValues.mlb_game_id && (
+                    <div className="space-y-1">
+                      <div className="text-sm text-muted-foreground">MLB Game</div>
+                      <div className="font-semibold text-xs">{watchedValues.mlb_game_id}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Submit Button */}
               <div className="pt-4">
@@ -288,25 +239,46 @@ export function GameCreationForm({ onGameCreated, onBack }: GameCreationFormProp
         <CardContent className="pt-6">
           <div className="space-y-3">
             <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-              What happens next?
+              Default Settings
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex items-start space-x-3">
                 <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                <span>You'll get a 6-digit PIN to share with players</span>
+                <span>$1 ante per round (customizable)</span>
               </div>
               <div className="flex items-start space-x-3">
                 <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                <span>Players join your lobby using the PIN</span>
+                <span>Turn-based adjudication (current player decides)</span>
               </div>
               <div className="flex items-start space-x-3">
                 <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                <span>You start the game when everyone's ready</span>
+                <span>Click "Edit Settings" to customize further</span>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Settings Popup */}
+      <Popup
+        open={showSettings}
+        onOpenChange={setShowSettings}
+        title="Game Settings"
+        description="Configure your game preferences"
+        className="max-w-2xl max-h-[80vh] overflow-y-auto"
+      >
+        <GameSettings
+          settings={{
+            ante_dollars: watchedValues.ante_dollars,
+            adjudication_mode: watchedValues.adjudication_mode,
+            deadline_seconds: watchedValues.deadline_seconds,
+            mlb_game_id: watchedValues.mlb_game_id,
+          }}
+          onSettingsChange={handleSettingsChange}
+          onSave={handleSettingsSave}
+          onCancel={() => setShowSettings(false)}
+        />
+      </Popup>
     </div>
   );
 }

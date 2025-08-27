@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { Navigation } from "@/components/Navigation";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ToastProvider } from "@/components/ui/toast-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,10 +38,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <div className="min-h-screen bg-background">
-              <Navigation />
-              <main>{children}</main>
-            </div>
+            <ToastProvider>
+              <div className="min-h-screen bg-background">
+                <Navigation />
+                <main>{children}</main>
+              </div>
+            </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

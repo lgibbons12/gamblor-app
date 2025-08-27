@@ -1,7 +1,7 @@
 """merge heads
 
 Revision ID: 594559cf1cd3
-Revises: 6f01e351fb59, fix_ledger_entries
+Revises: 6f01e351fb59
 Create Date: 2025-08-26 12:48:06.721589
 
 """
@@ -15,7 +15,7 @@ import pgvector
 
 # revision identifiers, used by Alembic.
 revision: str = '594559cf1cd3'
-down_revision: Union[str, Sequence[str], None] = ('6f01e351fb59', 'fix_ledger_entries')
+down_revision: Union[str, Sequence[str], None] = '6f01e351fb59'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
