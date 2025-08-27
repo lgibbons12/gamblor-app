@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,28 +8,51 @@ import { Separator } from '@/components/ui/separator';
 import { GameCreationForm } from '@/components/games/GameCreationForm';
 import { GameJoining } from '@/components/games/GameJoining';
 import { GameLobby } from '@/components/games/GameLobby';
-import { Game } from '@/lib/api/games';
+import GamePlay from '@/components/games/GamePlay';
+import { Game, gamesAPI, MyGameEntry } from '@/lib/api/games';
+import { useRouter } from 'next/navigation';
 import { Dice6, Users, Plus, LogIn } from 'lucide-react';
 
-type GameFlow = 'menu' | 'create' | 'join' | 'lobby';
+type GameFlow = 'menu' | 'create' | 'join' | 'lobby' | 'playing';
 
 export default function GamesPage() {
   const [currentFlow, setCurrentFlow] = useState<GameFlow>('menu');
   const [currentGame, setCurrentGame] = useState<Game | null>(null);
+  const [myActiveGames, setMyActiveGames] = useState<MyGameEntry[]>([]);
+  const [myPendingGames, setMyPendingGames] = useState<MyGameEntry[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [active, pending] = await Promise.all([
+          gamesAPI.listMyGames('active'),
+          gamesAPI.listMyGames('pending'),
+        ]);
+        setMyActiveGames(active);
+        setMyPendingGames(pending);
+      } catch (e) {
+        // ignore if unauthenticated
+      }
+    };
+    load();
+  }, []);
 
   const handleGameCreated = (game: Game) => {
-    setCurrentGame(game);
-    setCurrentFlow('lobby');
+    router.push(`/games/${game.id}`);
   };
 
   const handleGameJoined = (game: Game) => {
-    setCurrentGame(game);
-    setCurrentFlow('lobby');
+    router.push(`/games/${game.id}`);
   };
 
   const handleBackToMenu = () => {
     setCurrentFlow('menu');
     setCurrentGame(null);
+  };
+
+  const handleGameStarted = () => {
+    setCurrentFlow('playing');
   };
 
   const renderFlow = () => {
@@ -52,6 +75,14 @@ export default function GamesPage() {
         return currentGame ? (
           <GameLobby
             game={currentGame}
+            onBack={handleBackToMenu}
+            onGameStarted={handleGameStarted}
+          />
+        ) : null;
+      case 'playing':
+        return currentGame ? (
+          <GamePlay
+            gameId={currentGame.id}
             onBack={handleBackToMenu}
           />
         ) : null;
@@ -140,6 +171,51 @@ export default function GamesPage() {
             </div>
 
             <Separator className="max-w-2xl mx-auto" />
+
+            {/* Your Games */}
+            {(myActiveGames.length > 0 || myPendingGames.length > 0) && (
+              <div className="max-w-3xl mx-auto space-y-6">
+                {myActiveGames.length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-semibold mb-3">Your Active Games</h2>
+                    <div className="grid gap-3">
+                      {myActiveGames.map(({ game }) => (
+                        <Card key={game.id} className="hover:shadow cursor-pointer" onClick={() => router.push(`/games/${game.id}`)}>
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">{game.title || 'Untitled Game'}</div>
+                              <div className="text-sm text-muted-foreground">PIN {game.pin}</div>
+                            </div>
+                            <Badge>Active</Badge>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {myPendingGames.length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-semibold mb-3">Your Pending Games</h2>
+                    <div className="grid gap-3">
+                      {myPendingGames.map(({ game, is_admin }) => (
+                        <Card key={game.id} className="hover:shadow cursor-pointer" onClick={() => router.push(`/games/${game.id}`)}>
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">{game.title || 'Untitled Game'}</div>
+                              <div className="text-sm text-muted-foreground">PIN {game.pin}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {is_admin && <Badge variant="secondary">Admin</Badge>}
+                              <Badge variant="outline">Lobby</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* How it Works */}
             <div className="max-w-3xl mx-auto">

@@ -8,6 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Game, GameSummary, gamesAPI, GamePlayer } from '@/lib/api/games';
+import { CharacterSelection, BASEBALL_CHARACTERS } from '@/components/games/CharacterSelection';
+import { useAuth } from '@/lib/auth';
 import { 
   ArrowLeft, 
   Copy, 
@@ -19,22 +21,27 @@ import {
   DollarSign, 
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  User
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 interface GameLobbyProps {
   game: Game;
   onBack: () => void;
+  onGameStarted?: () => void;
 }
 
-export function GameLobby({ game: initialGame, onBack }: GameLobbyProps) {
+export function GameLobby({ game: initialGame, onBack, onGameStarted }: GameLobbyProps) {
   const [game, setGame] = useState<Game>(initialGame);
   const [gameSummary, setGameSummary] = useState<GameSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCharacter, setSelectedCharacter] = useState<string>('ace');
+  const [showCharacterSelection, setShowCharacterSelection] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Poll for updates every 5 seconds
   useEffect(() => {
@@ -100,6 +107,11 @@ export function GameLobby({ game: initialGame, onBack }: GameLobbyProps) {
       const summary = await gamesAPI.getGameSummary(game.id);
       setGameSummary(summary);
       setGame(summary.game);
+      
+      // Transition to playing view
+      if (onGameStarted) {
+        setTimeout(() => onGameStarted(), 1000); // Short delay to show success message
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to start game';
       setError(errorMessage);
@@ -132,8 +144,13 @@ export function GameLobby({ game: initialGame, onBack }: GameLobbyProps) {
     }
   };
 
-  const isAdmin = gameSummary?.players?.some(p => p.is_admin) || false;
+  // Find the current user in the game players
+  const currentUserPlayer = gameSummary?.players?.find(p => p.user_id === user?.id);
+  const isAdmin = currentUserPlayer?.is_admin || false;
   const canStart = isAdmin && game.status === 'pending' && (gameSummary?.player_count || 0) >= 2;
+  // Derive current user's persisted character from backend if available
+  const currentUserCharacterId = currentUserPlayer?.character ?? selectedCharacter;
+  const currentUserCharacter = BASEBALL_CHARACTERS.find(c => c.id === currentUserCharacterId);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -269,6 +286,69 @@ export function GameLobby({ game: initialGame, onBack }: GameLobbyProps) {
               </CardContent>
             </Card>
           )}
+
+          {/* Character Selection */}
+          <Card className="border-secondary/20 bg-secondary/5">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center space-x-2">
+                <User className="h-5 w-5 text-secondary-foreground" />
+                <span>Your Character</span>
+              </CardTitle>
+              <CardDescription>Choose your baseball persona</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!showCharacterSelection ? (
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3 p-3 bg-background rounded-lg border">
+                    <div className="text-2xl">{currentUserCharacter?.icon}</div>
+                    <div className="flex-1">
+                      <p className="font-semibold">{currentUserCharacter?.name}</p>
+                      <p className="text-sm text-muted-foreground">{currentUserCharacter?.description}</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={() => setShowCharacterSelection(true)}
+                  >
+                    Change Character
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <CharacterSelection
+                    selectedCharacter={selectedCharacter}
+                    onCharacterSelect={async (character) => {
+                      try {
+                        await gamesAPI.updateMyCharacter(game.id, character.id);
+                        setSelectedCharacter(character.id);
+                        setShowCharacterSelection(false);
+                        toast({
+                          title: "Character Selected!",
+                          description: `You are now ${character.name}`,
+                        });
+                        // Refresh summary to reflect persisted character
+                        const summary = await gamesAPI.getGameSummary(game.id);
+                        setGameSummary(summary);
+                      } catch (e) {
+                        const msg = e instanceof Error ? e.message : 'Failed to save character';
+                        toast({ title: 'Error', description: msg, variant: 'destructive' });
+                      }
+                    }}
+                    title=""
+                    description=""
+                  />
+                  <Button 
+                    variant="ghost" 
+                    className="w-full" 
+                    onClick={() => setShowCharacterSelection(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Players List */}
@@ -304,52 +384,72 @@ export function GameLobby({ game: initialGame, onBack }: GameLobbyProps) {
                 <div className="space-y-3">
                   {gameSummary.players
                     .sort((a, b) => a.turn_order - b.turn_order)
-                    .map((player: GamePlayer) => (
-                      <div
-                        key={player.id}
-                        className="flex items-center justify-between p-4 rounded-lg border bg-card"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="relative">
-                            <Avatar>
-                              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${player.user_id}`} />
-                              <AvatarFallback>
-                                {player.id.slice(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            {player.is_admin && (
-                              <Crown className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-semibold">
-                                Player {player.turn_order}
-                              </span>
+                    .map((player: GamePlayer) => {
+                      const isCurrentUser = player.user_id === user?.id;
+                      const playerCharacterId = player.character ?? BASEBALL_CHARACTERS[player.turn_order % BASEBALL_CHARACTERS.length].id;
+                      const playerCharacter = BASEBALL_CHARACTERS.find(c => c.id === playerCharacterId) || BASEBALL_CHARACTERS[0];
+                      
+                      return (
+                        <div
+                          key={player.id}
+                          className={`flex items-center justify-between p-4 rounded-lg border ${
+                            isCurrentUser 
+                              ? 'border-primary bg-primary/5 shadow-md' 
+                              : 'border-border bg-card'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="relative">
+                              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-2xl">
+                                {playerCharacter?.icon || '👤'}
+                              </div>
                               {player.is_admin && (
-                                <Badge variant="outline" className="text-xs">
-                                  Admin
-                                </Badge>
+                                <Crown className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
+                              )}
+                              {isCurrentUser && (
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                                  <User className="h-3 w-3 text-primary-foreground" />
+                                </div>
                               )}
                             </div>
-                            {player.nickname && (
-                              <p className="text-sm text-muted-foreground">
-                                {player.nickname}
-                              </p>
-                            )}
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-semibold">
+                                  {isCurrentUser ? 'You' : `Player ${player.turn_order}`}
+                                </span>
+                                {player.is_admin && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Admin
+                                  </Badge>
+                                )}
+                                {isCurrentUser && (
+                                  <Badge variant="default" className="text-xs">
+                                    You
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium text-primary">
+                                  {playerCharacter?.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {playerCharacter?.description}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right text-sm text-muted-foreground">
+                            <div>Turn #{player.turn_order}</div>
+                            <div className="flex items-center space-x-1">
+                              <Clock className="h-3 w-3" />
+                              <span>
+                                {new Date(player.last_seen_at).toLocaleTimeString()}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right text-sm text-muted-foreground">
-                          <div>Joined {new Date(player.joined_at).toLocaleDateString()}</div>
-                          <div className="flex items-center space-x-1">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              Last seen {new Date(player.last_seen_at).toLocaleTimeString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               ) : (
                 <div className="text-center py-8">

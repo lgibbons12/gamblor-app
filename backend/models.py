@@ -85,6 +85,7 @@ class GamePlayerBase(SQLModel):
     turn_order: int
     is_admin: bool = Field(default=False)
     nickname: Optional[str] = Field(default=None)
+    character: str = Field(default="ace")
 
 
 class GamePlayer(GamePlayerBase, table=True):

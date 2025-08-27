@@ -5,6 +5,7 @@ export interface GameCreateRequest {
   mlb_game_id?: string;
   ante_dollars?: number;
   adjudication_mode?: 'admin_only' | 'trust_turn_holder';
+  deadline_seconds?: number;
 }
 
 export interface GameJoinRequest {
@@ -49,6 +50,7 @@ export interface GamePlayer {
   turn_order: number;
   is_admin: boolean;
   nickname?: string;
+  character?: string;
   joined_at: string;
   last_seen_at: string;
 }
@@ -60,6 +62,12 @@ export interface GameSummary {
   is_joinable: boolean;
 }
 
+export interface MyGameEntry {
+  game: Game;
+  is_admin: boolean;
+  player_id: string;
+}
+
 export interface PlayerStateInfo {
   id: string;
   user_id: string;
@@ -67,6 +75,7 @@ export interface PlayerStateInfo {
   turn_order: number;
   is_admin: boolean;
   nickname?: string;
+  character?: string;
   is_current_player: boolean;
 }
 
@@ -80,6 +89,7 @@ export interface LeaderboardEntry {
 }
 
 export interface GameState {
+  current_inning_id?: string;
   inning_number?: number;
   half?: 'top' | 'bottom';
   outs: number;
@@ -93,6 +103,42 @@ export interface GameState {
   leaderboard: LeaderboardEntry[];
   last_event_id?: string;
   game_status: string;
+}
+
+export interface PickCreateRequest {
+  inning_id: string;
+  choice_code: 'K' | 'G' | 'F' | 'D' | 'T' | 'N';
+}
+
+export interface PickAmendRequest {
+  new_code: 'K' | 'G' | 'F' | 'D' | 'T' | 'N';
+}
+
+export interface PickResponse {
+  id: string;
+  choice_code: string;
+  amend_count: number;
+  is_final: boolean;
+  created_at: string;
+}
+
+export interface AdjudicationRequest {
+  inning_id: string;
+  result_code: 'K' | 'G' | 'F' | 'D' | 'T' | 'N';
+}
+
+export interface MissRequest {
+  inning_id: string;
+}
+
+export interface AdjudicationResponse {
+  inning_id: string;
+  result_code: string;
+  winners: string[];
+  pot_awarded: number;
+  new_outs: number;
+  inning_closed: boolean;
+  next_inning_started: boolean;
 }
 
 class GamesAPI {
@@ -157,6 +203,52 @@ class GamesAPI {
   // Get real-time game state
   async getGameState(gameId: string): Promise<GameState> {
     return this.request<GameState>(`/games/${gameId}/state`);
+  }
+
+  // List my games
+  async listMyGames(status?: 'pending' | 'active' | 'final'): Promise<MyGameEntry[]> {
+    const q = status ? `?status_filter=${status}` : '';
+    return this.request<MyGameEntry[]>(`/games/mine${q}`);
+  }
+
+  // Update my character for a game
+  async updateMyCharacter(gameId: string, character: string): Promise<{ player_id: string; character: string; }> {
+    return this.request(`/games/${gameId}/players/me/character`, {
+      method: 'PATCH',
+      body: JSON.stringify({ character }),
+    });
+  }
+
+  // Create or update a pick
+  async createPick(gameId: string, data: PickCreateRequest): Promise<PickResponse> {
+    return this.request<PickResponse>(`/games/${gameId}/picks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Amend an existing pick
+  async amendPick(gameId: string, pickId: string, data: PickAmendRequest): Promise<PickResponse> {
+    return this.request<PickResponse>(`/games/${gameId}/picks/${pickId}/amend`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Adjudicate an outcome
+  async adjudicateOutcome(gameId: string, data: AdjudicationRequest): Promise<AdjudicationResponse> {
+    return this.request<AdjudicationResponse>(`/games/${gameId}/outs`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Mark a miss
+  async markMiss(gameId: string, data: MissRequest): Promise<AdjudicationResponse> {
+    return this.request<AdjudicationResponse>(`/games/${gameId}/miss`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 }
 
